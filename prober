@@ -1,10 +1,9 @@
 
 #!/usr/bin/python3
-import sys,time
 import easysnmp
-import math
-from easysnmp import Session
-from easysnmp import snmp_get,snmp_walk
+import sys
+import time
+from easysnmp import Session, snmp_get, snmp_walk
 Argument=sys.argv[1]
 COMMAND=Argument.split(':')
 IP_ADDRESS=COMMAND[0]
