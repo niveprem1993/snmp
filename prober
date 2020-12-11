@@ -1,78 +1,83 @@
 #!/usr/bin/python3
-
-#importing module
-import math
-import easysnmp 
-import sys, time 
-from easysnmp import Session
-from easysnmp import snmp_get, snmp_walk
+import easysnmp
+import sys
+import time
+from easysnmp import Session, snmp_get, snmp_walk
 
 
-# agent/device details to probes
+conn = sys.argv[1]
+connection = conn.split(':')
+ip = connection[0]
+port = connection[1]
+comm = connection[2]
+samp_freq = sys.argv[2]
+sample_time = 1/int(samp_freq)
+samples_input = sys.argv[3]
+samples = int(samples_input)
+sample = (samples)
 
-
-device_info = sys.argv[1]
-data = device_info.split(':')
-ipaddress = data[0]
-port = data[1]
-comm = data[2]
-frequency = float(sys.argv[2]) 
-frequencyTime = 1/frequency
-NoOfSample = int(sys.argv[3])
-
-OIDs = []
-OidFirst = []
-OidList = []
-
-
-for i in range(4, len(sys.argv)):
-	OIDs.append(sys.argv[i])
-OIDs.insert(0, '1.3.6.1.2.1.1.3.0')
-
-def FunctionSnmp():
-	global OidFirst, time_counting
-	session=Session(hostname=ipaddress,remote_port=port,community='public',version=2,timeout=1,retries=1)
-	responseStore = session.get(OIDs)
-	OidList = []
-	
-
-	for j in range(1,len(responseStore)):
-		if responseStore[j].value!='NOSUCHOBJECT' and responseStore[j].value!='NOSUCHINSTANCE':
-			OidList.append(int(responseStore[j].value))
-
-			if count!=0 and len(OidFirst)>0:
-				timeRate = int(OidList[j-1]) - int(OidFirst[j-1])
-				timeStore = round(past_time - time_counting,1)
-				rateObtain = int(timeRate/timeStore)
-
-				if rateObtain < 0:
-					if responseStore[j].snmp_type == 'COUNTER32':
-						timeRate = timeRate + 2**32
-						print(str(past_time) + "|"+ str(timeRate / timeStore) +"|")
-					elif responseStore =='COUNTER64':
-						timeRate = timeRate+2**64
-						print(str(past_time) +"|"+ str(timeRate/timeStore)+"|")
-				else:
-					print(str(past_time)+"|"+str(rateObtain)+"|")
-
-	OidFirst = OidList
-	time_counting = past_time
-
-if NoOfSample == -1:
-	count = 0
-	OidFirst = []
-	while True:
-		past_time = (time.time())
-		FunctionSnmp()
-		responseTime=(time.time())
-		count = count +1
-		time.sleep(abs(frequencyTime - responseTime + past_time))
+if sample >= 1:
+    count = sample+1
+elif sample == -1:
+    count = 1
+elif sample == 0:
+    count = 0
 else:
-	OidFirst = []
-	for count in range(0, NoOfSample+1):
-		past_time = (time.time())
-		FunctionSnmp()
-		responseTime = (time.time())
-		time.sleep(abs(frequencyTime - responseTime+past_time))					
-	
+    print("Incorrect sample value")
+    exit()
 
+oid = []
+new_oid = []
+old_oid = []
+current_time = 0
+for n in range(4, len(sys.argv)):
+    oid.append(sys.argv[n])
+oid.insert(0, '1.3.6.1.2.1.1.3.0')
+
+
+def probe_device():
+    global new_oid, old_oid, current_time
+    session = Session(hostname=ip, remote_port=port,
+                      community='public', version=2, timeout=1, retries=1)
+    new_oid = []
+    oids = session.get(oid)
+    for i in range(1, len(oids)):
+        if oids[i].value != 'NOSUCHOBJECT' and oids[i].value != 'NOSUCHINSTANCE':
+            new_oid.append(int(oids[i].value))
+            if count != 0 and len(old_oid) > 0:
+                time_1 = int(new_oid[i-1]) - int(old_oid[i-1])
+                difference = round(delay-current_time, 1)
+                interval_rate = int(time_1 / difference)
+                if interval_rate < 0:
+                    if oids[i].snmp_type == 'COUNTER32':
+                        time_1 = time_1 + 2**32
+                        print(str(delay) + "|" + str(time_1 / difference) + "|")
+                    elif oids[i].snmp_type == 'COUNTER64':
+                        time_1 = time_1 + 2**64
+                        print(str(delay) + "|" + str(time_1 / difference) + "|")
+                else:
+                    print(str(delay) + "|" + str(interval_rate) + "|")
+
+    old_oid = new_oid
+    current_time = delay
+
+
+num = 1
+while 1:
+    if sample == -1:
+        pass
+    elif num <= count:
+        pass
+    else:
+        exit()
+
+    delay = time.time()
+    probe_device()
+    delay1 = time.time()
+    sleep_time = sample_time - (delay1 - delay)
+    if sleep_time < 0:
+        pass
+    else:
+        time.sleep(sleep_time)
+
+    num = num+1
