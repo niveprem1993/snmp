@@ -1,11 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+import easysnmp
 import sys
 import time
-
-import easysnmp
 from easysnmp import Session, snmp_get, snmp_walk
 
-delay = time.time()
 
 conn = sys.argv[1]
 connection = conn.split(':')
@@ -13,9 +11,9 @@ ip = connection[0]
 port = connection[1]
 comm = connection[2]
 samp_freq = sys.argv[2]
-sample_time = 1/float(samp_freq)
+sample_time = 1/samp_freq
 samples_input = sys.argv[3]
-samples = float(samples_input)
+samples = samples_input
 sample = (samples)
 
 if sample >= 1:
@@ -29,11 +27,12 @@ else:
     exit()
 
 oid = []
-oid[0] = "'1.3.6.1.2.1.1.3.0'"
 new_oid = []
 old_oid = []
+current_time = 0
 for n in range(4, len(sys.argv)):
     oid.append(sys.argv[n])
+oid.insert(0, '1.3.6.1.2.1.1.3.0')
 
 
 def probe_device():
@@ -43,17 +42,17 @@ def probe_device():
     new_oid = []
     oids = session.get(oid)
     for i in range(1, len(oids)):
-        if oids(i).value != 'NOSUCHOBJECT' and oids(i).value != 'NOSUCHINSTANCE':
-            new_oid.append(int(oids(i).value))
+        if oids[i].value != 'NOSUCHOBJECT' and oids[i].value != 'NOSUCHINSTANCE':
+            new_oid.append(int(oids[i].value))
             if count != 0 and len(old_oid) > 0:
-                time_1 = int(new_oid(i-1)) - int(old_oid(i-1))
+                time_1 = int(new_oid[i-1]) - int(old_oid[i-1])
                 difference = round(delay-current_time, 1)
                 interval_rate = int(time_1 / difference)
                 if interval_rate < 0:
-                    if oids(i).snmp_type == 'COUNTER32':
+                    if oids[i].snmp_type == 'COUNTER32':
                         time_1 = time_1 + 2**32
                         print(str(delay) + "|" + str(time_1 / difference) + "|")
-                    elif oids(i).snmp_type == 'COUNTER64':
+                    elif oids[i].snmp_type == 'COUNTER64':
                         time_1 = time_1 + 2**64
                         print(str(delay) + "|" + str(time_1 / difference) + "|")
                 else:
@@ -72,15 +71,13 @@ while 1:
     else:
         exit()
 
-    delay1 = time.time()
-
-    sleep_time = sample_time - (delay1 - delay)
     delay = time.time()
-
+    probe_device()
+    delay1 = time.time()
+    sleep_time = sample_time - (delay1 - delay)
     if sleep_time < 0:
         pass
     else:
         time.sleep(sleep_time)
 
-    probe_device()
     num = num+1
