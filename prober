@@ -1,7 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 import sys
-import subprocess
+import easysnmp
 import time
+from easysnmp import Session,snmp_get,snmp_walk
 
 delay = time.time()
 
@@ -15,7 +16,6 @@ sample_time = 1/float(samp_freq)
 samples_input = sys.argv[3]
 samples = float(samples_input)
 sample = (samples)
-oids = sys.argv[4:]
 
 if sample >= 1:
     count = sample+1
@@ -27,25 +27,45 @@ else:
     print("Incorrect sample value")
     exit()
 
+oid = []
+oid[0] = "'1.3.6.1.2.1.1.3.0'"
+new_oid = []
+old_oid = []
+for n in range(4,len(sys.argv)):
+    oid.append(sys.argv[n])
+
+def probe_device():
+    global old_oid,current_time
+    session = Session(hostname=ip,remote_port=port,community='public',version=2,timeout=1,retries=1)
+    oids = session.get(oid)
+    for i in range(1,len(oids)):
+        if oids(i).value!='NOSUCHOBJECT' and oids(i).value!='NOSUCHINSTANCE':
+           new_oid.append(int(oids(i).value))  
+           if count!=0 and len(old_oid)>0:
+		time_1 = int(new_oid(i-1)) - int(old_oid(i-1))
+		difference=round(delay-current_time,1)
+		interval_rate = int(time_1 / difference)
+		if interval_rate < 0 :
+			if oids(i).snmp_type == 'COUNTER32': 
+			    time_1 = time_1 + 2**32
+			    print(str(delay) +"|"+ str(time_1 / difference) +"|")
+			elif oids(i).snmp_type == 'COUNTER64':
+			    time_1 = time_1 + 2**64
+			    print(str(delay) +"|"+ str(time1 / difference) +"|")
+		else:
+	           print(str(delay) +"|"+ str(interval_rate) +"|")
+
+	old_oid = new_oid
+        current_time = delay
+
 num = 1
 while 1:
-    command = "snmpget -v 2c -c"+str(comm)+" "+str(ip) + \
-        ":"+str(port)+" "+"1.3.6.1.2.1.2.2.1.10.2 [1]"+" "+str(oids)
     if sample == -1:
         pass
     elif num <= count:
         pass
     else:
         exit()
-
-    output = subprocess.check_output(command)
-    output_time = output.splitlines()
-    up_time1 = output_time[0]
-    up_time = up_time1.split(' ')
-    time1 = up_time[3]
-    time1 = time1.replace('(', '')
-    time1 = time1.replace(')', '')
-    time_1 = float(time1)
 
     delay1 = time.time()
 
@@ -57,27 +77,5 @@ while 1:
     else:
         time.sleep(sleep_time)
 
-    rate = []
-
-    i = 1
-    if i < len(output_time):
-        value = output_time[i].split(' ')
-        rate_value = float(value[3])
-        rate.append(rate_value)
-        i = i+1
-
-    counter = value[2]
-    total_time = time_1/100
-    if total_time > 0:
-        output_console = []
-        output_console.append(int(time.time()))
-        if counter.find('32') != -1:
-            rate1 = int(rate + (2**32))
-            rate_cal = int(int(rate1)/total_time)
-            output_console.append(rate_cal)
-        else:
-            rate2 = int(rate + (2**64))
-            rate_cal = int(int(rate2)/total_time)
-            output_console.append(rate_cal)
-    print('|'.join(map(str, output_console)))
+    probe_device()
     num = num+1
