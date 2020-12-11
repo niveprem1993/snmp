@@ -1,83 +1,63 @@
+
 #!/usr/bin/python3
+import sys,time
 import easysnmp
-import sys
-import time
-from easysnmp import Session, snmp_get, snmp_walk
+import math
+from easysnmp import Session
+from easysnmp import snmp_get,snmp_walk
+Argument=sys.argv[1]
+COMMAND=Argument.split(':')
+IP_ADDRESS=COMMAND[0]
+PORT=COMMAND[1]
+Network=COMMAND[2]
+FREQUENCY_OF_SAMPLE=float(sys.argv[2])
+INTERVALS=int(sys.argv[3])
+INTERVALS_TIME=1/FREQUENCY_OF_SAMPLE 
+OBJECT_IDENTIFIERS=[]
+OLD_OBJECT_IDENTIFIER=[]
+NEW_OBJECT_IDENTIFIER=[]
+for NUMBER_OBJECT_IDENTIFIER in range(4,len(sys.argv)):
+	OBJECT_IDENTIFIERS.append(sys.argv[NUMBER_OBJECT_IDENTIFIER])
+OBJECT_IDENTIFIERS.insert(0,'1.3.6.1.2.1.1.3.0')
+def easysnmp_prober():
+	global OLD_OBJECT_IDENTIFIER, CURR_TIME
+	session=Session(hostname=IP_ADDRESS,remote_port=PORT,community='public',version=2,timeout=1,retries=1)
+	retaliation=session.get(OBJECT_IDENTIFIERS)
+	NEW_OBJECT_IDENTIFIER=[]
+	for getter in range(1,len(retaliation)):
+		if retaliation[getter].value!='NOSUCHOBJECT' and retaliation[getter].value!='NOSUCHINSTANCE':
+			NEW_OBJECT_IDENTIFIER.append(int(retaliation[getter].value))
+			
+			if count!=0 and len(OLD_OBJECT_IDENTIFIER)>0:
+				different_object_identifier=int(NEW_OBJECT_IDENTIFIER[getter-1]) - int(OLD_OBJECT_IDENTIFIER[getter-1])
+				different_time=round(PREVIOUS_SAMPLES-CURR_TIME,1)
+				SAMPLE_INTERVAL_RATE = int(different_object_identifier / different_time)
+				if SAMPLE_INTERVAL_RATE < 0 :
+					if retaliation[getter].snmp_type == 'COUNTER32': 
+						different_object_identifier = different_object_identifier + 2**32
+						print(str(PREVIOUS_SAMPLES) +"|"+ str(different_object_identifier / different_time) +"|")
+					elif retaliation[getter].snmp_type == 'COUNTER64':
+						different_object_identifier = different_object_identifier + 2**64
+						print(str(PREVIOUS_SAMPLES) +"|"+ str(different_object_identifier / different_time) +"|")
+				else:
+					print(str(PREVIOUS_SAMPLES) +"|"+ str(SAMPLE_INTERVAL_RATE) +"|")
 
-
-conn = sys.argv[1]
-connection = conn.split(':')
-ip = connection[0]
-port = connection[1]
-comm = connection[2]
-samp_freq = sys.argv[2]
-sample_time = 1/samp_freq
-samples_input = sys.argv[3]
-samples = samples_input
-sample = (samples)
-
-if sample >= 1:
-    count = sample+1
-elif sample == -1:
-    count = 1
-elif sample == 0:
-    count = 0
+	OLD_OBJECT_IDENTIFIER=NEW_OBJECT_IDENTIFIER
+	CURR_TIME=PREVIOUS_SAMPLES
+if INTERVALS==-1:
+	count=0
+	OLD_OBJECT_IDENTIFIER=[]
+	while True:
+		PREVIOUS_SAMPLES=(time.time())
+		easysnmp_prober()
+		response_time=(time.time())
+		count = count+1
+		time.sleep(abs(INTERVALS_TIME - response_time + PREVIOUS_SAMPLES))
 else:
-    print("Incorrect sample value")
-    exit()
-
-oid = []
-new_oid = []
-old_oid = []
-current_time = 0
-for n in range(4, len(sys.argv)):
-    oid.append(sys.argv[n])
-oid.insert(0, '1.3.6.1.2.1.1.3.0')
-
-
-def probe_device():
-    global new_oid, old_oid, current_time
-    session = Session(hostname=ip, remote_port=port,
-                      community='public', version=2, timeout=1, retries=1)
-    new_oid = []
-    oids = session.get(oid)
-    for i in range(1, len(oids)):
-        if oids[i].value != 'NOSUCHOBJECT' and oids[i].value != 'NOSUCHINSTANCE':
-            new_oid.append(int(oids[i].value))
-            if count != 0 and len(old_oid) > 0:
-                time_1 = int(new_oid[i-1]) - int(old_oid[i-1])
-                difference = round(delay-current_time, 1)
-                interval_rate = int(time_1 / difference)
-                if interval_rate < 0:
-                    if oids[i].snmp_type == 'COUNTER32':
-                        time_1 = time_1 + 2**32
-                        print(str(delay) + "|" + str(time_1 / difference) + "|")
-                    elif oids[i].snmp_type == 'COUNTER64':
-                        time_1 = time_1 + 2**64
-                        print(str(delay) + "|" + str(time_1 / difference) + "|")
-                else:
-                    print(str(delay) + "|" + str(interval_rate) + "|")
-
-    old_oid = new_oid
-    current_time = delay
-
-
-num = 1
-while 1:
-    if sample == -1:
-        pass
-    elif num <= count:
-        pass
-    else:
-        exit()
-
-    delay = time.time()
-    probe_device()
-    delay1 = time.time()
-    sleep_time = sample_time - (delay1 - delay)
-    if sleep_time < 0:
-        pass
-    else:
-        time.sleep(sleep_time)
-
-    num = num+1
+	OLD_OBJECT_IDENTIFIER=[]
+	for count in range(0,INTERVALS+1):
+		PREVIOUS_SAMPLES=(time.time())
+		easysnmp_prober()
+		response_time=(time.time())
+		time.sleep(abs(INTERVALS_TIME - response_time + PREVIOUS_SAMPLES))
+		
